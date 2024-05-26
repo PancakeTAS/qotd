@@ -85,30 +85,48 @@ static void on_setqotd(struct discord *client, const struct discord_interaction 
             .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
             .data = &(struct discord_interaction_callback_data) {
                 .flags = DISCORD_MESSAGE_EPHEMERAL,
-                .content = "Hold up! Only Lumi can update the question of the day..."
+                .content = "Hold up! Only Lumi can interact with the bot..."
             }
         }, NULL);
 
-        log_info("[QOTD] User %s tried to update question of the day", event->member->user->username);
+        log_info("[QOTD] User %s tried to access slash commands", event->member->user->username);
         return;
     }
 
     // verify that the command has the correct options (should never be triggered, but just in case)
-    if (event->data->options->size != 1 || event->data->options->array[0].type != DISCORD_APPLICATION_OPTION_STRING) {
+    if (event->data->options->size != 1) {
         discord_create_interaction_response(client, event->id, event->token, &(struct discord_interaction_response) {
             .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
             .data = &(struct discord_interaction_callback_data) {
                 .flags = DISCORD_MESSAGE_EPHEMERAL,
-                .content = "Invalid command usage, please provide a message!"
+                .content = "Invalid command usage"
             }
         }, NULL);
 
-        log_info("[QOTD] User %s tried to update qotd without providing a message", event->member->user->username);
+        log_info("[QOTD] User %s tried to access qotd command with invalid parameters", event->member->user->username);
+        return;
+    }
+
+    // check if command is to get qotd
+    if (event->data->options->array[0].options->size == 0) {
+        char response[4001] = "Question of the day is not set";
+        if (qotd_message)
+            snprintf(response, sizeof(response), "Question of the day is currently set to:\n> \"%s\"", qotd_message);
+
+        discord_create_interaction_response(client, event->id, event->token, &(struct discord_interaction_response) {
+            .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
+            .data = &(struct discord_interaction_callback_data) {
+                .flags = DISCORD_MESSAGE_EPHEMERAL,
+                .content = response
+            }
+        }, NULL);
+
+        log_info("[QOTD] User %s requested qotd", event->member->user->username);
         return;
     }
 
     // set the qotd
-    qotd_message = strdup(event->data->options->array[0].value);
+    qotd_message = strdup(event->data->options->array[0].options->array[0].value);
 
     // send response
     char response[4001];
@@ -168,17 +186,32 @@ void bot_main(struct discord* client, const struct discord_ready *event) {
         .size = 1,
         .array = &(struct discord_application_command) {
             .type = DISCORD_APPLICATION_CHAT_INPUT,
-            .name = "setqotd",
-            .description = "Set the next question of the day",
+            .name = "qotd",
+            .description = "Set or get the next question of the day",
             .default_permission = false,
             .application_id = event->application->id,
             .options = &(struct discord_application_command_options) {
-                .size = 1,
-                .array = &(struct discord_application_command_option) {
-                    .type = DISCORD_APPLICATION_OPTION_STRING,
-                    .name = "message",
-                    .description = "The text message to send as question of the day, the bot will mention the role by itself",
-                    .required = true
+                .size = 2,
+                .array = (struct discord_application_command_option[]) {
+                    {
+                        .type = DISCORD_APPLICATION_OPTION_SUB_COMMAND,
+                        .name = "set",
+                        .description = "Set the next question of the day",
+                        .options = &(struct discord_application_command_options) {
+                            .size = 1,
+                            .array = &(struct discord_application_command_option) {
+                                .type = DISCORD_APPLICATION_OPTION_STRING,
+                                .name = "message",
+                                .description = "The text message to send as question of the day, the bot will mention the role by itself",
+                                .required = true
+                            }
+                        }
+                    },
+                    {
+                        .type = DISCORD_APPLICATION_OPTION_SUB_COMMAND,
+                        .name = "get",
+                        .description = "Get the next question of the day"
+                    }
                 }
             }
         }
