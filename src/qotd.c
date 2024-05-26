@@ -25,11 +25,11 @@
 /// Config file for the bot
 #define CONFIG_FILE "config.json"
 
-/// Lumi's user ID (well, pancakes)
+/// Lumi's user ID
 #define LUMI_USER_ID 905564480082153543ULL
-/// QOTD role ID (well, qotds)
+/// QOTD role ID
 #define QOTD_ROLE_ID 1215105959815553096ULL
-/// QOTD channel ID (well, bot-testing)
+/// QOTD channel ID
 #define QOTD_CHANNEL_ID 1198507295538151434ULL
 
 /**
